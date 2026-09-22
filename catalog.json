@@ -1,0 +1,73 @@
+{
+  "slug": "amoe",
+  "version": "1.2.0",
+  "paper": "AMOE-1.2",
+  "author": "Aziel Eliab",
+  "amoe_is_field": false,
+  "amoe_is_wiring": true,
+  "depends": "spectrallock@0.3.1",
+  "invent_letters": false,
+  "pigment_recovery": false,
+  "pigment_door": "spectrallock",
+  "amoe_as_color": false,
+  "alias_amoe_to_rosetta": false,
+  "execution": "local",
+  "catalog_only": true,
+  "worker_overlay": "not commissioned",
+  "cap": "The human still reads the page.",
+  "grid": [
+    "zero",
+    "tazel",
+    "vyrn",
+    "uv",
+    "rosetta",
+    "zen",
+    "chaos",
+    "balance",
+    "candle",
+    "indent",
+    "lemon"
+  ],
+  "wheel_hex": {
+    "zero": "#325767",
+    "chaos": "#8D223D",
+    "vyrn": "#A22639",
+    "uv": "#9F3B2B",
+    "tazel": "#797A2D",
+    "rosetta": "#467542",
+    "zen": "#DFD2B5"
+  },
+  "engine_hex": {
+    "zero": "#6F6485",
+    "tazel": "#1EC9A5",
+    "vyrn": "#C00066",
+    "uv": "#8C73D9",
+    "chaos": "#8C3861",
+    "balance": "#8A8680",
+    "candle": "#FF9E38",
+    "indent": "#B8AD94",
+    "lemon": "#9E6124"
+  },
+  "engine_blend": {
+    "rosetta": "0.40·Z + 0.35·T + 0.25·V",
+    "zen": "(Z + T + UV + V) / 4"
+  },
+  "ring": ["zero", "chaos", "vyrn", "uv", "tazel", "rosetta"],
+  "center": "zen",
+  "slot": ["RS", "AA", "DR", "VC", "HL", "RSA"],
+  "refuse": [
+    "AMOE-EMPTY-HUE",
+    "AMOE-NO-FIGURE",
+    "AMOE-BAD-STEP:n",
+    "AMOE-GATE-MISALIGN",
+    "AMOE-RECONSTRUCT-NOT-NEEDED",
+    "AMOE-RECONSTRUCT-USE-ADAPT",
+    "amoe_as_color",
+    "invent_mark",
+    "invent_letter",
+    "SL-UNREDACT-OPAQUE"
+  ],
+  "source": "https://github.com/AzielEliab/spectrallock",
+  "vendor_commit": "92fcc3b031b3c6e1bf398d4263092e20d9bad3c5",
+  "note": "aziel-runtime may catalog this object. It does not execute it unless an overlay op is commissioned. Pigment restore stays on SpectralLock."
+}

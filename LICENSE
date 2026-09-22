@@ -1,3 +1,9 @@
+Copyright 2026 Aziel Eliab
+
+AMOE-1.2 is wiring on the SpectralLock color grid. It is not a field and not a color.
+SpectralLock 0.3.1 is vendored in vendor/spectrallock under the Apache License, Version 2.0.
+Author: Aziel Eliab.
+
                                  Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/

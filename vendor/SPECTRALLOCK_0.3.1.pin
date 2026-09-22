@@ -1,0 +1,5 @@
+source: https://github.com/AzielEliab/spectrallock
+version: 0.3.1
+commit: 92fcc3b031b3c6e1bf398d4263092e20d9bad3c5
+package: vendor/spectrallock
+note: Byte copy of the Python package at main tip 0.3.1 (pigment doors). Engine math is not rewritten. AMOE does not reimplement the pigment path.
