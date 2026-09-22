@@ -41,6 +41,11 @@ def overlay(rgb: np.ndarray, *, color: str = GEOM_COLOR) -> tuple[np.ndarray, di
     u8 = _as_uint8(rgb)
     image = Image.fromarray(u8, "RGB")
     edges = np.asarray(image.filter(ImageFilter.FIND_EDGES).convert("L"), dtype=np.float32)
+    # The edge kernel treats the outside of the canvas as black. That halo is not page content.
+    edges[:1, :] = 0
+    edges[-1:, :] = 0
+    edges[:, :1] = 0
+    edges[:, -1:] = 0
     mask = edges >= 16.0
     meta: dict = {
         "invent_figures": False,
