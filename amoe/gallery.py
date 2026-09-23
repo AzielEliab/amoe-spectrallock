@@ -15,8 +15,8 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from amoe import ensure_vendor
-from amoe.paint import wheel_paint, write_png
-from amoe.wheel import AUTHOR, VERSION, WHEEL_HEX, hex_to_rgb
+from amoe.paint import defined_paint, write_png
+from amoe.wheel import AUTHOR, PAINT_LAW, VERSION, WHEEL_HEX, WHEEL_LAW
 
 ensure_vendor()
 
@@ -25,12 +25,6 @@ LAYOUT: tuple[tuple[str, ...], ...] = (
     ("vyrn", "uv", "tazel"),
     ("rosetta", "zen", "blend"),
 )
-
-
-def _analyze_gate(rgb: np.ndarray, mode: str) -> np.ndarray:
-    from spectrallock.engine import analyze
-
-    return analyze(rgb, mode, inject=False, target="ink").rgb
 
 
 def _fit(rgb: np.ndarray, size: int) -> np.ndarray:
@@ -56,16 +50,8 @@ def _tile(rgb: np.ndarray, label: str) -> np.ndarray:
     return np.asarray(sheet, dtype=np.float32) / 255.0
 
 
-def _blend_color() -> tuple[float, float, float]:
-    zen = hex_to_rgb(WHEEL_HEX["zen"])
-    chaos = hex_to_rgb(WHEEL_HEX["chaos"])
-    return tuple((zen[i] + chaos[i]) / 2.0 for i in range(3))
-
-
 def build_gallery(rgb: np.ndarray) -> tuple[np.ndarray, list[str]]:
-    """Contact sheet. Source is the page. Other tiles are the wheel pass."""
-    from amoe.paint import false_color
-
+    """Contact sheet. Source is the page. Other tiles are the 1.3 wheel law."""
     cells: dict[str, np.ndarray] = {"source": rgb}
     labels: list[str] = []
     for row in LAYOUT:
@@ -73,14 +59,22 @@ def build_gallery(rgb: np.ndarray) -> tuple[np.ndarray, list[str]]:
             if name == "source":
                 continue
             if name == "blend":
-                gate = _analyze_gate(rgb, "balance")
-                cells[name] = false_color(gate, _blend_color())
+                cells[name] = defined_paint(rgb, "balance", palette="wheel")
             else:
-                cells[name] = wheel_paint(_analyze_gate(rgb, name), name)
+                cells[name] = defined_paint(rgb, name, palette="wheel")
     tiles = []
     for row in LAYOUT:
         for name in row:
-            label = "source" if name == "source" else f"{name} · wheel"
+            if name == "source":
+                label = "source"
+            elif name == "blend":
+                label = "blend · bsa"
+            elif name == "rosetta":
+                label = "rosetta · pixel-scope"
+            elif name == "zen":
+                label = "zen · invert"
+            else:
+                label = f"{name} · wheel"
             labels.append(label)
             tiles.append(_tile(cells[name], label))
     sample = tiles[0]
@@ -93,7 +87,7 @@ def build_gallery(rgb: np.ndarray) -> tuple[np.ndarray, list[str]]:
     width = cols * tw + (cols + 1) * gap
     canvas = Image.new("RGB", (width, height), (18, 17, 16))
     draw = ImageDraw.Draw(canvas)
-    draw.text((gap, 6), "AMOE-1.2 gallery · wheel pass · wiring, not a field", fill=(223, 210, 181))
+    draw.text((gap, 6), "AMOE-1.3 gallery · wheel law · wiring, not a field", fill=(223, 210, 181))
     for index, tile in enumerate(tiles):
         y, x = divmod(index, cols)
         left = gap + x * (tw + gap)
@@ -121,4 +115,6 @@ def save_gallery(rgb: np.ndarray, path: Path) -> dict:
         "pigment_recovery": False,
         "invent_letters": False,
         "wheel_hex": dict(WHEEL_HEX),
+        "wheel_law": dict(WHEEL_LAW),
+        "paint_law": PAINT_LAW,
     }

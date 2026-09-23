@@ -2,4 +2,4 @@ source: https://github.com/AzielEliab/spectrallock
 version: 0.3.1
 commit: 92fcc3b031b3c6e1bf398d4263092e20d9bad3c5
 package: vendor/spectrallock
-note: Byte copy of the Python package at main tip 0.3.1 (pigment doors). Engine math is not rewritten. AMOE does not reimplement the pigment path.
+note: Byte copy of the Python package at main tip 0.3.1 (pigment doors). Engine math is not rewritten. AMOE 1.3 keeps this tip. The 1.3 paint-law plate names SpectralLock 0.3.0; this tree was already 0.3.1, so 0.3.1 stays vendored. analyze, apply_target, and inject formulas are untouched. AMOE does not reimplement the pigment path.

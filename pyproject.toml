@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "amoe-spectrallock"
-version = "1.2.0"
-description = "AMOE-1.2 wiring on the SpectralLock 0.3.1 color grid. Not a field and not a color. Author Aziel Eliab."
+version = "1.3.0"
+description = "AMOE-1.3 wiring on the SpectralLock 0.3.1 color grid. Rosetta is a pixel map. Zen inverts that map. Not a field and not a color. Author Aziel Eliab."
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [{name = "Aziel Eliab"}]

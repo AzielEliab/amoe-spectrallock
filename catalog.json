@@ -1,8 +1,9 @@
 {
   "slug": "amoe",
-  "version": "1.2.0",
-  "paper": "AMOE-1.2",
+  "version": "1.3.0",
+  "paper": "AMOE-1.3",
   "author": "Aziel Eliab",
+  "identity": "aziel-runtime",
   "amoe_is_field": false,
   "amoe_is_wiring": true,
   "depends": "spectrallock@0.3.1",
@@ -15,6 +16,7 @@
   "catalog_only": true,
   "worker_overlay": "not commissioned",
   "cap": "The human still reads the page.",
+  "paint_law": "Pull what is faded. Color it with the wheel that was defined. Rosetta maps every pixel onto that wheel. Zen inverts that map. AMOE rides every lens. Do not make the pattern. Draw the pattern out.",
   "grid": [
     "zero",
     "tazel",
@@ -29,13 +31,24 @@
     "lemon"
   ],
   "wheel_hex": {
-    "zero": "#325767",
-    "chaos": "#8D223D",
-    "vyrn": "#A22639",
-    "uv": "#9F3B2B",
-    "tazel": "#797A2D",
-    "rosetta": "#467542",
-    "zen": "#DFD2B5"
+    "zero": "#2E5A8C",
+    "chaos": "#7A2E5C",
+    "vyrn": "#C00066",
+    "uv": "#C45A2A",
+    "tazel": "#8A9A2E"
+  },
+  "wheel_law": {
+    "rosetta": "pixel-scope",
+    "zen": "invert",
+    "balance": "bsa-mix"
+  },
+  "ring_cw_from_zero": {
+    "zero": "#2E5A8C",
+    "chaos": "#7A2E5C",
+    "vyrn": "#C00066",
+    "uv": "#C45A2A",
+    "tazel": "#8A9A2E",
+    "rosetta": "#2E7A4A"
   },
   "engine_hex": {
     "zero": "#6F6485",
@@ -43,6 +56,8 @@
     "vyrn": "#C00066",
     "uv": "#8C73D9",
     "chaos": "#8C3861",
+    "rosetta": "#6B8A8A",
+    "zen": "#C9C4B8",
     "balance": "#8A8680",
     "candle": "#FF9E38",
     "indent": "#B8AD94",
@@ -52,10 +67,15 @@
     "rosetta": "0.40·Z + 0.35·T + 0.25·V",
     "zen": "(Z + T + UV + V) / 4"
   },
+  "engine_note": {
+    "rosetta": "membership #6B8A8A; paint is the pixel-scope map",
+    "zen": "membership #C9C4B8; paint is the invert of the Rosetta plate"
+  },
   "ring": ["zero", "chaos", "vyrn", "uv", "tazel", "rosetta"],
   "center": "zen",
   "slot": ["RS", "AA", "DR", "VC", "HL", "RSA"],
   "refuse": [
+    "AMOE-WEAK-SIGNAL",
     "AMOE-EMPTY-HUE",
     "AMOE-NO-FIGURE",
     "AMOE-BAD-STEP:n",
@@ -67,6 +87,12 @@
     "invent_letter",
     "SL-UNREDACT-OPAQUE"
   ],
+  "vendor": {
+    "source": "https://github.com/AzielEliab/spectrallock",
+    "version": "0.3.1",
+    "commit": "92fcc3b031b3c6e1bf398d4263092e20d9bad3c5",
+    "note": "Package was already on 0.3.1. That tip stays vendored. analyze / apply_target / inject are not rewritten. The 1.3 plate text also names 0.3.0."
+  },
   "source": "https://github.com/AzielEliab/spectrallock",
   "vendor_commit": "92fcc3b031b3c6e1bf398d4263092e20d9bad3c5",
   "note": "aziel-runtime may catalog this object. It does not execute it unless an overlay op is commissioned. Pigment restore stays on SpectralLock."

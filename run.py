@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AMOE-1.2 entry. Author: Aziel Eliab."""
+"""AMOE-1.3 entry. Author: Aziel Eliab."""
 
 from __future__ import annotations
 
