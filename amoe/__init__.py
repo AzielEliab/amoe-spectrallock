@@ -1,4 +1,4 @@
-"""AMOE-1.2 — wiring on every cell of the SpectralLock color grid.
+"""AMOE-1.3 — wiring on every cell of the SpectralLock color grid.
 
 AMOE is not a field and not a color. There is no twelfth lens named AMOE
 and AMOE is not an alias of Rosetta. Pigment restore stays a SpectralLock
@@ -12,8 +12,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-__version__ = "1.2.0"
-__paper__ = "AMOE-1.2"
+__version__ = "1.3.0"
+__paper__ = "AMOE-1.3"
 __author__ = "Aziel Eliab"
 
 __all__ = [

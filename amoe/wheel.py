@@ -1,9 +1,9 @@
 """Spectral Harmonic Wheel, engine lens card, custodians, and path names.
 
-Wheel hexes are the live operator paint plane (sampled 2026-09-22).
-Engine hexes are the densitometry / lens card from the commission §3.
-They are not interchangeable. UV on the wheel is burnt red; engine UV
-is the synthetic violet look.
+Gallery paint uses WHEEL_HEX. Inject/membership uses ENGINE_HEX.
+Do not swap the tables. Rosetta paint is a pixel-scope map, not a hex
+sheet. Zen paint is the invert of that map. The engine notes for those
+two lenses are membership colors only.
 
 Author: Aziel Eliab.
 """
@@ -11,9 +11,14 @@ Author: Aziel Eliab.
 from __future__ import annotations
 
 AUTHOR = "Aziel Eliab"
-VERSION = "1.2.0"
-PAPER = "AMOE-1.2"
+VERSION = "1.3.0"
+PAPER = "AMOE-1.3"
 PRODUCT = "amoe"
+PAINT_LAW = (
+    "Pull what is faded. Color it with the wheel that was defined. "
+    "Rosetta maps every pixel onto that wheel. Zen inverts that map. "
+    "AMOE rides every lens. Do not make the pattern. Draw the pattern out."
+)
 
 # Eleven lenses. Never add a twelfth named AMOE. Never alias AMOE to Rosetta.
 GRID: tuple[str, ...] = (
@@ -37,14 +42,16 @@ SCALAR_MODES: tuple[str, ...] = ("zero", "tazel", "vyrn", "uv", "zen", "chaos")
 RING: tuple[str, ...] = ("zero", "chaos", "vyrn", "uv", "tazel", "rosetta")
 CENTER = "zen"
 
-# Engine / densitometry triad and the other lens hexes from commission §3.
-# Rosetta and Zen are blends, not single hexes — see ENGINE_BLEND.
+# Engine / densitometry card. Rosetta and Zen hexes are membership notes.
+# SpectralLock analyze() still blends those lenses inside the vendored engine.
 ENGINE_HEX: dict[str, str] = {
     "zero": "#6F6485",
     "tazel": "#1EC9A5",
     "vyrn": "#C00066",
     "uv": "#8C73D9",
     "chaos": "#8C3861",
+    "rosetta": "#6B8A8A",
+    "zen": "#C9C4B8",
     "balance": "#8A8680",
     "candle": "#FF9E38",
     "indent": "#B8AD94",
@@ -63,15 +70,39 @@ ENGINE_BLEND: dict[str, str] = {
     "chaos_mix": "0.40·UV + 0.35·V + 0.20·T + 0.05·Z",
 }
 
-# Spectral Harmonic Wheel paint. Operator art, not the retired gallery sheet.
+ENGINE_NOTE: dict[str, str] = {
+    "rosetta": "membership #6B8A8A; paint is the pixel-scope map, not this hex",
+    "zen": "membership #C9C4B8; paint is clip(1 - Rosetta_pixel_map), not a cream sheet",
+}
+
+# Operator plate. Single-hex sheets only. Rosetta and Zen are laws, not swatches.
 WHEEL_HEX: dict[str, str] = {
-    "zero": "#325767",
-    "chaos": "#8D223D",
-    "vyrn": "#A22639",
-    "uv": "#9F3B2B",
-    "tazel": "#797A2D",
-    "rosetta": "#467542",
-    "zen": "#DFD2B5",
+    "zero": "#2E5A8C",
+    "chaos": "#7A2E5C",
+    "vyrn": "#C00066",
+    "uv": "#C45A2A",
+    "tazel": "#8A9A2E",
+}
+
+# Clockwise ring used by the Rosetta pixel map. Includes Rosetta green as one bin.
+RING_CW_FROM_ZERO: dict[str, str] = {
+    "zero": "#2E5A8C",
+    "chaos": "#7A2E5C",
+    "vyrn": "#C00066",
+    "uv": "#C45A2A",
+    "tazel": "#8A9A2E",
+    "rosetta": "#2E7A4A",
+}
+
+WHEEL_LAW: dict[str, str] = {
+    "zero": "single-hex",
+    "chaos": "single-hex",
+    "vyrn": "single-hex",
+    "uv": "single-hex",
+    "tazel": "single-hex",
+    "rosetta": "pixel-scope",
+    "zen": "invert",
+    "balance": "bsa-mix",
 }
 
 PAPERS: dict[str, str] = {
@@ -93,9 +124,9 @@ ROLES: dict[str, str] = {
     "tazel": "revelation / maker",
     "vyrn": "pressure / guardian",
     "uv": "synthetic UV look",
-    "rosetta": "composite",
-    "zen": "equal mix",
-    "chaos": "weighted mix",
+    "rosetta": "full-scope pixel map",
+    "zen": "invert of the rosetta pixel plate",
+    "chaos": "single hex sheet",
     "balance": "reweight only",
     "candle": "warm flame-side",
     "indent": "relief heuristic",
@@ -178,6 +209,11 @@ GATE_OK: frozenset[str] = frozenset({"gate", "post-gate"})
 GEOM_COLOR = "#6EA0D2"
 
 REFUSE_EMPTY_HUE = "AMOE-EMPTY-HUE"
+REFUSE_WEAK_SIGNAL = "AMOE-WEAK-SIGNAL"
+SCALAR_NOTE = (
+    "ZE and CH already mix core channels; the /12 double-counts. "
+    "The paper is followed and the double-count is recorded."
+)
 REFUSE_NO_FIGURE = "AMOE-NO-FIGURE"
 REFUSE_BAD_STEP = "AMOE-BAD-STEP"
 REFUSE_GATE_MISALIGN = "AMOE-GATE-MISALIGN"
@@ -202,19 +238,11 @@ def hex_to_rgb(code: str) -> tuple[float, float, float]:
 
 
 def engine_rgb(mode: str) -> tuple[float, float, float]:
-    """Lens-card tint. Blends use the §3 weights on engine hexes, including violet UV."""
+    """Membership hex. Rosetta and Zen are the 1.3 notes, not the analyze blends."""
     key = str(mode).strip().lower()
-    if key in ENGINE_HEX:
-        return hex_to_rgb(ENGINE_HEX[key])
-    if key == "rosetta":
-        z = hex_to_rgb(ENGINE_HEX["zero"])
-        t = hex_to_rgb(ENGINE_HEX["tazel"])
-        v = hex_to_rgb(ENGINE_HEX["vyrn"])
-        return tuple(0.40 * z[i] + 0.35 * t[i] + 0.25 * v[i] for i in range(3))
-    if key == "zen":
-        parts = [hex_to_rgb(ENGINE_HEX[name]) for name in ("zero", "tazel", "uv", "vyrn")]
-        return tuple(sum(part[i] for part in parts) / 4.0 for i in range(3))
-    raise KeyError(key)
+    if key not in ENGINE_HEX:
+        raise KeyError(key)
+    return hex_to_rgb(ENGINE_HEX[key])
 
 
 def wheel_rgb(mode: str) -> tuple[float, float, float]:

@@ -36,7 +36,62 @@ def _vertical_energy(gray: Image.Image) -> np.ndarray:
     return np.abs(response - 128.0)
 
 
-def overlay(rgb: np.ndarray, *, color: str = GEOM_COLOR) -> tuple[np.ndarray, dict]:
+def harmonic_mass(rgb: np.ndarray) -> dict:
+    """ASCENT / WEIGHT / EQUILIBRIUM along a harmonic S. Mass already in the leaf."""
+    from amoe import ensure_vendor
+
+    ensure_vendor()
+    from spectrallock.engine import finite01, luminance
+
+    lum = luminance(finite01(rgb))
+    height, width = lum.shape
+    count = max(16, int(min(height, width)))
+    t = np.linspace(0.0, 1.0, count, dtype=np.float64)
+    ys = np.clip(np.rint((1.0 - t) * (height - 1)), 0, height - 1).astype(np.int32)
+    xs = np.clip(
+        np.rint((0.5 + 0.28 * np.sin(2.0 * np.pi * t)) * (width - 1)),
+        0,
+        width - 1,
+    ).astype(np.int32)
+    darkness = 1.0 - lum[ys, xs].astype(np.float64)
+    total = float(darkness.sum())
+    weight = float(darkness.mean())
+    if total <= 1e-8:
+        ascent = 0.5
+        equilibrium = 1.0
+    else:
+        ascent = float((darkness * t).sum() / total)
+        equilibrium = float(1.0 - min(1.0, abs(ascent - 0.5) * 2.0))
+    return {
+        "on": True,
+        "curve": "harmonic-s",
+        "ascent": ascent,
+        "weight": weight,
+        "equilibrium": equilibrium,
+        "invent_figures": False,
+    }
+
+
+def _draw_s_curve(draw: ImageDraw.ImageDraw, box: list[int], color: str) -> None:
+    x0, y0, x1, y1 = box
+    span_x = max(1.0, float(x1 - x0))
+    span_y = max(1.0, float(y1 - y0))
+    pts = []
+    steps = 48
+    for i in range(steps):
+        t = i / (steps - 1)
+        y = y1 - t * span_y
+        x = x0 + (0.5 + 0.28 * np.sin(2.0 * np.pi * t)) * span_x
+        pts.append((x, y))
+    draw.line(pts, fill=color, width=1)
+
+
+def overlay(
+    rgb: np.ndarray,
+    *,
+    color: str = GEOM_COLOR,
+    weight: bool = True,
+) -> tuple[np.ndarray, dict]:
     """Draw the ZERO frame when edges support it. Otherwise return the page unchanged."""
     u8 = _as_uint8(rgb)
     image = Image.fromarray(u8, "RGB")
@@ -51,7 +106,9 @@ def overlay(rgb: np.ndarray, *, color: str = GEOM_COLOR) -> tuple[np.ndarray, di
         "invent_figures": False,
         "color": color,
         "drawn": False,
+        "on": True,
         "reason": "edges do not support a staff",
+        "weighting": harmonic_mass(rgb) if weight else {"on": False},
     }
     ys, xs = np.nonzero(mask)
     if ys.size < 8:
@@ -107,6 +164,8 @@ def overlay(rgb: np.ndarray, *, color: str = GEOM_COLOR) -> tuple[np.ndarray, di
         outline=color,
         width=2,
     )
+    if weight:
+        _draw_s_curve(draw, [x0, y0, x1, y1], color)
     meta.update(
         {
             "drawn": True,
@@ -121,8 +180,14 @@ def overlay(rgb: np.ndarray, *, color: str = GEOM_COLOR) -> tuple[np.ndarray, di
     return np.asarray(canvas, dtype=np.float32) / 255.0, meta
 
 
-def save_overlay(rgb: np.ndarray, path: Path, *, color: str = GEOM_COLOR) -> dict:
-    painted, meta = overlay(rgb, color=color)
+def save_overlay(
+    rgb: np.ndarray,
+    path: Path,
+    *,
+    color: str = GEOM_COLOR,
+    weight: bool = True,
+) -> dict:
+    painted, meta = overlay(rgb, color=color, weight=weight)
     digest = write_png(painted, path)
     meta["path"] = path.name
     meta["sha256"] = digest

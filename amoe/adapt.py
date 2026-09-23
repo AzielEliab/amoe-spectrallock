@@ -22,7 +22,7 @@ import numpy as np
 from amoe import ensure_vendor
 from amoe.gallery import save_gallery
 from amoe.geom import save_overlay
-from amoe.paint import lift_gray, wheel_paint, write_png
+from amoe.paint import defined_paint, lift_gray, write_png
 from amoe.wheel import (
     AUTHOR,
     CENTER,
@@ -32,7 +32,7 @@ from amoe.wheel import (
     REFUSE_RECONSTRUCT_USE_ADAPT,
     RING,
     VERSION,
-    WHEEL_HEX,
+    WHEEL_LAW,
 )
 from amoe.wrap import _base_card, process, write_card
 
@@ -142,7 +142,7 @@ def adapt(
     zero = analyze(rgb, "zero", target="page", inject=False)
     lifted = lift_gray(zero.rgb)
     card["geom"] = save_overlay(lifted, out_dir / "geom.png")
-    recon = wheel_paint(lifted, "zero")
+    recon = defined_paint(rgb, "zero", palette="wheel")
     labeled = _caption(recon, "reconstruct · wheel:zero")
     card["reconstruct_zero"] = {
         "path": "reconstruct_zero.png",
@@ -153,11 +153,10 @@ def adapt(
         "inject": False,
     }
     ring_files = []
-    for mode in [*RING, CENTER]:
-        if mode not in WHEEL_HEX:
+    for mode in [*RING, CENTER, "balance"]:
+        if mode not in WHEEL_LAW:
             continue
-        gate = analyze(rgb, mode, target=target or "ink", inject=False)
-        painted = wheel_paint(gate.rgb, mode)
+        painted = defined_paint(rgb, mode, palette="wheel")
         filename = f"wheel_{mode}.png"
         digest = write_png(painted, out_dir / filename)
         ring_files.append({"mode": mode, "path": filename, "sha256": digest, "pass": "wheel"})
