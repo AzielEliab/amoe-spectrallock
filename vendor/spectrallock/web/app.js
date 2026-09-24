@@ -132,6 +132,7 @@ function setFile(file) {
   receiptEl.hidden = true;
   setExportEnabled(false);
   fname.textContent = file.name + " · " + Math.round(file.size / 1024) + " KiB";
+  document.body.classList.add("has-page");
   forgetUrls();
   const u = URL.createObjectURL(file);
   objectUrls.push(u);
@@ -157,7 +158,7 @@ drop.addEventListener("drop", (e) => {
 if (pigmentBtn) {
   pigmentBtn.addEventListener("click", async () => {
     if (!sourceFile) return;
-    meta.textContent = "restoring pigment…";
+    meta.textContent = "Looking for faded pigment…";
     pigmentBtn.disabled = true;
     try {
       const buf = await sourceFile.arrayBuffer();
@@ -171,11 +172,11 @@ if (pigmentBtn) {
       });
       const payload = await res.json();
       if (!payload.pigment_recovery) {
-        meta.textContent = "error: pigment path did not run";
+        meta.textContent = "Pigment restore did not run.";
         return;
       }
       if (!payload.recovered || !payload.png_b64) {
-        meta.textContent = "pigment refused " + (payload.refuse_code || "SL-PIGMENT-GONE") + " — no supported faded signal, no new marks";
+        meta.textContent = "No faded pigment left in these pixels.";
         return;
       }
       const raw = atob(payload.png_b64);
@@ -188,7 +189,7 @@ if (pigmentBtn) {
       objectUrls.push(u);
       after.src = u;
       afterLabel.textContent = "· restore pigment";
-      meta.textContent = "pigment recovered · evidence pixels " + payload.evidence_pixels + " · pigment_recovery true";
+      meta.textContent = "Pigment restored from pixels that still carry it.";
       setExportEnabled(true);
     } catch (err) {
       meta.textContent = String(err);
@@ -199,11 +200,11 @@ if (pigmentBtn) {
 }
 
 sampleBtn.addEventListener("click", async () => {
-  meta.textContent = "loading sample page…";
+  meta.textContent = "Loading a sample page…";
   try {
     const res = await fetch("/api/sample");
     if (!res.ok) {
-      meta.textContent = "error: could not load sample page";
+      meta.textContent = "The sample page did not load.";
       return;
     }
     const blob = await res.blob();
@@ -320,7 +321,7 @@ async function run() {
   sampleBtn.disabled = true;
   setExportEnabled(false);
   receiptEl.hidden = true;
-  meta.textContent = "working…";
+  meta.textContent = "Coloring…";
   const lenses = activeLenses();
   try {
     const fd = new FormData();
@@ -335,7 +336,7 @@ async function run() {
         const err = JSON.parse(msg);
         msg = err.error || msg;
       } catch (_) {}
-      meta.textContent = "error: " + msg;
+      meta.textContent = msg;
       overlayBlob = null;
       lastReceipt = null;
       return;
@@ -365,9 +366,8 @@ async function run() {
     after.src = u;
     const label = lenses.map(modeLabel).join(" + ") + " · " + target;
     afterLabel.textContent = "· " + label;
-    const paper = lastReceipt.paper;
-    meta.textContent = lenses.join("+") + " / " + target + (paper ? " (" + paper + ")" : "") +
-      " — Rosetta spectral analysis, Corpus OCR lens family.";
+    const where = target === "page" ? "page" : "ink";
+    meta.textContent = lenses.map(modeLabel).join(" + ") + " · " + where;
     setExportEnabled(true);
   } catch (err) {
     meta.textContent = String(err);

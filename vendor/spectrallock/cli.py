@@ -58,17 +58,61 @@ def _overlay_mode(name: str) -> str:
     return resolve_mode(name)
 
 
-def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="spectrallock",
-        description=(
-            "SpectralLock — Rosetta spectral analysis (Aziel Eliab, 2026). "
-            "Same SpectralLock lenses as Aziel Corpus Library OCR: overlays "
-            "plus ink/page targets. "
-            f"Local UI: `spectrallock ui` at http://127.0.0.1:8861. {LIMITATION}"
-        ),
-    )
-    sub = parser.add_subparsers(dest="cmd", required=True)
+SPECTRAL_HELP = """spectrallock — color a photograph with a lens
+
+usage: spectrallock <command> [options]
+
+Add a page, pick a lens, and read the result. You still read the page.
+Author: Aziel Eliab.
+
+Start
+  ui                          Open the local page
+  overlay --mode LENS IN OUT  Color one picture
+  doctor                      Check this install
+  modes                       List the lenses
+
+Advanced
+  lenses, version, serve, inject
+  unredact, lift, redact-locate
+  recover
+  handwriting, handwrite, ink-hand, forgery-scan
+  pigment, restore-pigment
+
+Examples
+  spectrallock ui
+  spectrallock overlay --mode rosetta IN.png OUT.png
+  spectrallock doctor
+
+Machine output stays on --json where that command already has it.
+"""
+
+
+def _spectral_error(prog: str, message: str) -> str:
+    text = str(message or "")
+    if "invalid choice" in text and "'" in text:
+        start = text.find("'")
+        end = text.find("'", start + 1)
+        name = text[start + 1 : end] if end > start else "that"
+        return f'Unknown command "{name}". Try: spectrallock ui   or   spectrallock --help'
+    if "required" in text and "overlay" in prog:
+        return "overlay needs a lens, an input, and an output. Try: spectrallock overlay --mode rosetta IN.png OUT.png"
+    if "required" in text:
+        return f"{text.rstrip('.')}. Try: spectrallock --help"
+    if "unrecognized arguments" in text:
+        return f"{text.rstrip('.')}. Try: spectrallock --help"
+    return f"{text}. Try: spectrallock --help"
+
+
+class SpectralParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        sys.stderr.write(_spectral_error(self.prog, message) + "\n")
+        self.exit(2)
+
+
+def _build_parser() -> SpectralParser:
+    parser = SpectralParser(prog="spectrallock")
+    parser.format_help = lambda: SPECTRAL_HELP  # type: ignore[method-assign]
+    sub = parser.add_subparsers(dest="cmd", required=False, parser_class=SpectralParser)
 
     sub.add_parser("version", help="Print package version.")
     sub.add_parser(
@@ -553,7 +597,36 @@ def _print_receipt(rec: dict) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
-    args = parser.parse_args(list(argv) if argv is not None else None)
+    raw = list(argv) if argv is not None else None
+    if raw == []:
+        print(
+            "SpectralLock 0.3.1\n"
+            "\n"
+            "Color a photograph with a lens. You still read the page.\n"
+            "\n"
+            "  spectrallock ui\n"
+            "  spectrallock overlay --mode rosetta IN.png OUT.png\n"
+            "  spectrallock doctor\n"
+            "  spectrallock --help\n"
+            "\n"
+            "Author: Aziel Eliab"
+        )
+        return 0
+    args = parser.parse_args(raw)
+    if not getattr(args, "cmd", None):
+        print(
+            "SpectralLock 0.3.1\n"
+            "\n"
+            "Color a photograph with a lens. You still read the page.\n"
+            "\n"
+            "  spectrallock ui\n"
+            "  spectrallock overlay --mode rosetta IN.png OUT.png\n"
+            "  spectrallock doctor\n"
+            "  spectrallock --help\n"
+            "\n"
+            "Author: Aziel Eliab"
+        )
+        return 0
 
     if args.cmd == "version":
         print(f"spectrallock {__version__}")

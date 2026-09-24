@@ -1,5 +1,7 @@
 """AMOE-1.3 command line. Local execution. Catalog is not a Worker op.
 
+People get a short reading. Machines pass --json and receive the same card.
+
 Author: Aziel Eliab.
 """
 
@@ -12,8 +14,10 @@ from pathlib import Path
 
 from amoe import AmoeError, __author__, __paper__, __version__, package_root
 from amoe.adapt import adapt, reconstruct
+from amoe.doctor import doctor_card
 from amoe.gallery import save_gallery
 from amoe.geom import save_overlay
+from amoe.human import help_text, summarize, usage_hint, welcome_card, welcome_text
 from amoe.paint import lift_gray, write_png
 from amoe.path import audit, engine_opaque_refuse
 from amoe.script import preocr_page, recover_image, recover_script, route_page, together_page
@@ -38,9 +42,26 @@ from amoe.wheel import (
 from amoe.wrap import invention_card, load_page, paint_only, parse_indices, process, reading_card, write_card
 
 
+class AmoeParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        sys.stderr.write(usage_hint(self.prog, message) + "\n")
+        self.exit(2)
+
+
 def _print(payload: dict) -> None:
     json.dump(payload, sys.stdout, indent=2)
     sys.stdout.write("\n")
+
+
+def emit(card: dict, *, as_json: bool, folder: Path | None = None) -> None:
+    if as_json:
+        _print(card)
+        return
+    sys.stdout.write(summarize(card, folder=folder))
+
+
+def _wants_json(argv: list[str]) -> tuple[bool, list[str]]:
+    return "--json" in argv, [item for item in argv if item != "--json"]
 
 
 def _exit_code(payload: dict) -> int:
@@ -86,6 +107,16 @@ def _out(page: str, out: Path | None, name: str) -> Path:
     return Path("amoe-out") / stem / name
 
 
+def _load(page: str):
+    path = Path(page)
+    if not path.is_file():
+        raise AmoeError("AMOE-NO-PAGE", path=str(page))
+    try:
+        return load_page(path)
+    except ValueError as exc:
+        raise AmoeError("AMOE-NOT-PICTURE", path=str(page), detail=str(exc)) from exc
+
+
 def _guard_invention(args: argparse.Namespace, out: Path) -> dict | None:
     note = args.operator_note
     if args.invent_letters:
@@ -106,13 +137,13 @@ def _cmd_overlay(args: argparse.Namespace) -> int:
         card = invention_card(code, args.operator_note)
         card["mode"] = args.mode
         write_card(card, out / "amoe.json")
-        _print(card)
+        emit(card, as_json=args.as_json, folder=out)
         return 2
     blocked = _guard_invention(args, out)
     if blocked:
-        _print(blocked)
+        emit(blocked, as_json=args.as_json, folder=out)
         return 2
-    rgb, digest = load_page(Path(args.page))
+    rgb, digest = _load(args.page)
     card = process(
         rgb,
         src=str(args.page),
@@ -127,7 +158,7 @@ def _cmd_overlay(args: argparse.Namespace) -> int:
         geom=not args.no_geom,
         weight=not args.no_weight,
     )
-    _print(card)
+    emit(card, as_json=args.as_json, folder=out)
     return _exit_code(card)
 
 
@@ -135,9 +166,9 @@ def _cmd_grid(args: argparse.Namespace) -> int:
     out = _out(args.page, args.out, "grid")
     blocked = _guard_invention(args, out)
     if blocked:
-        _print(blocked)
+        emit(blocked, as_json=args.as_json, folder=out)
         return 2
-    rgb, digest = load_page(Path(args.page))
+    rgb, digest = _load(args.page)
     card = process(
         rgb,
         src=str(args.page),
@@ -152,7 +183,7 @@ def _cmd_grid(args: argparse.Namespace) -> int:
         geom=not args.no_geom,
         weight=not args.no_weight,
     )
-    _print(card)
+    emit(card, as_json=args.as_json, folder=out)
     return _exit_code(card)
 
 
@@ -162,32 +193,32 @@ def _cmd_paint(args: argparse.Namespace) -> int:
     if code:
         card = invention_card(code, args.operator_note)
         write_card(card, out / "paint.json")
-        _print(card)
+        emit(card, as_json=args.as_json, folder=out)
         return 2
-    rgb, _digest = load_page(Path(args.page))
+    rgb, _digest = _load(args.page)
     if args.palette == "wheel":
         modes = [args.mode] if args.mode else [*RING, "zen", "balance"]
     else:
         modes = [args.mode] if args.mode else list(GRID)
     card = paint_only(rgb, out_dir=out, palette=args.palette, modes=modes)
-    _print(card)
+    emit(card, as_json=args.as_json, folder=out)
     return 0
 
 
 def _cmd_gallery(args: argparse.Namespace) -> int:
-    rgb, _digest = load_page(Path(args.page))
+    rgb, _digest = _load(args.page)
     out = _out(args.page, args.out, "gallery")
     out.mkdir(parents=True, exist_ok=True)
     card = save_gallery(rgb, out / "gallery.png")
     card = reading_card(rgb, **card)
     write_card(card, out / "gallery.json")
     write_card(card, out / "amoe.json")
-    _print(card)
+    emit(card, as_json=args.as_json, folder=out)
     return _exit_code(card)
 
 
 def _cmd_lift(args: argparse.Namespace) -> int:
-    rgb, digest = load_page(Path(args.page))
+    rgb, digest = _load(args.page)
     out = _out(args.page, args.out, "lift")
     out.mkdir(parents=True, exist_ok=True)
     sha = write_png(lift_gray(rgb), out / "lift.png")
@@ -199,12 +230,12 @@ def _cmd_lift(args: argparse.Namespace) -> int:
         note="Percentile stretch, equalize, unsharp on present pixels. No new letters.",
     )
     write_card(card, out / "amoe.json")
-    _print(card)
+    emit(card, as_json=args.as_json, folder=out)
     return _exit_code(card)
 
 
 def _cmd_geom(args: argparse.Namespace) -> int:
-    rgb, digest = load_page(Path(args.page))
+    rgb, digest = _load(args.page)
     out = _out(args.page, args.out, "geom")
     out.mkdir(parents=True, exist_ok=True)
     if args.no_geom:
@@ -228,12 +259,12 @@ def _cmd_geom(args: argparse.Namespace) -> int:
     )
     write_card(card, out / "geom.json")
     write_card(card, out / "amoe.json")
-    _print(card)
+    emit(card, as_json=args.as_json, folder=out)
     return _exit_code(card)
 
 
 def _cmd_adapt(args: argparse.Namespace) -> int:
-    rgb, digest = load_page(Path(args.page))
+    rgb, digest = _load(args.page)
     out = _out(args.page, args.out, "adapt")
     card = adapt(
         rgb,
@@ -245,7 +276,7 @@ def _cmd_adapt(args: argparse.Namespace) -> int:
         inject=args.inject,
         indices=parse_indices(args.index),
     )
-    _print(card)
+    emit(card, as_json=args.as_json, folder=out)
     return _exit_code(card)
 
 
@@ -253,34 +284,50 @@ def _cmd_reconstruct(args: argparse.Namespace) -> int:
     out = args.out or Path("amoe-out") / "reconstruct"
     if not args.page:
         card = reconstruct(None, out_dir=out)
-        _print(card)
+        emit(card, as_json=args.as_json, folder=out)
         return 2
-    rgb, digest = load_page(Path(args.page))
+    rgb, digest = _load(args.page)
+    folder = _out(args.page, args.out, "adapt")
     card = reconstruct(
         rgb,
         src=str(args.page),
-        out_dir=_out(args.page, args.out, "adapt"),
+        out_dir=folder,
         sha256_in=digest,
         with_grid=False,
         target=None,
         inject=False,
         indices=None,
     )
-    _print(card)
+    emit(card, as_json=args.as_json, folder=folder)
     return _exit_code(card)
 
 
 def _cmd_path(args: argparse.Namespace) -> int:
-    payload = json.loads(Path(args.card).read_text(encoding="utf-8"))
+    path = Path(args.card)
+    if not path.is_file():
+        card = invention_card("AMOE-NO-CARD")
+        card["extra"] = {"path": str(path)}
+        emit(card, as_json=args.as_json)
+        return 2
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        card = invention_card("AMOE-BAD-JSON")
+        emit(card, as_json=args.as_json)
+        return 2
+    if not isinstance(payload, dict):
+        card = invention_card("AMOE-BAD-JSON")
+        emit(card, as_json=args.as_json)
+        return 2
     card = audit(payload)
-    _print(card)
+    emit(card, as_json=args.as_json)
     return 0 if card["ok"] else 2
 
 
 def _cmd_catalog(_args: argparse.Namespace) -> int:
     path = package_root() / "catalog.json"
     payload = json.loads(path.read_text(encoding="utf-8"))
-    _print(payload)
+    emit(payload, as_json=_args.as_json)
     return 0
 
 
@@ -307,12 +354,12 @@ def _cmd_custodian(_args: argparse.Namespace) -> int:
         "note": "Pigment restore is a SpectralLock product door. AMOE does not run it.",
         "engine_opaque_refuse": engine_opaque_refuse(),
     }
-    _print(card)
+    emit(card, as_json=_args.as_json)
     return 0
 
 
 def _cmd_recover_image(args: argparse.Namespace) -> int:
-    rgb, digest = load_page(Path(args.page))
+    rgb, digest = _load(args.page)
     out = _out(args.page, args.out, "recover-image")
     card = recover_image(
         rgb,
@@ -322,12 +369,12 @@ def _cmd_recover_image(args: argparse.Namespace) -> int:
         geom=not args.no_geom,
         weight=not args.no_weight,
     )
-    _print(card)
+    emit(card, as_json=args.as_json, folder=out)
     return _exit_code(card)
 
 
 def _cmd_recover_script(args: argparse.Namespace) -> int:
-    rgb, digest = load_page(Path(args.page))
+    rgb, digest = _load(args.page)
     out = _out(args.page, args.out, "recover-script")
     card = recover_script(
         rgb,
@@ -337,7 +384,7 @@ def _cmd_recover_script(args: argparse.Namespace) -> int:
         geom=not args.no_geom,
         weight=not args.no_weight,
     )
-    _print(card)
+    emit(card, as_json=args.as_json, folder=out)
     return _exit_code(card)
 
 
@@ -348,9 +395,9 @@ def _cmd_script(args: argparse.Namespace) -> int:
         card = invention_card(code, None)
         card["mode"] = args.mode
         write_card(card, out / "amoe.json")
-        _print(card)
+        emit(card, as_json=args.as_json, folder=out)
         return 2
-    rgb, digest = load_page(Path(args.page))
+    rgb, digest = _load(args.page)
     card = recover_script(
         rgb,
         src=str(args.page),
@@ -360,12 +407,12 @@ def _cmd_script(args: argparse.Namespace) -> int:
         geom=not args.no_geom,
         weight=not args.no_weight,
     )
-    _print(card)
+    emit(card, as_json=args.as_json, folder=out)
     return _exit_code(card)
 
 
 def _cmd_route(args: argparse.Namespace) -> int:
-    rgb, digest = load_page(Path(args.page))
+    rgb, digest = _load(args.page)
     out = _out(args.page, args.out, "route")
     card = route_page(
         rgb,
@@ -375,20 +422,20 @@ def _cmd_route(args: argparse.Namespace) -> int:
         geom=not args.no_geom,
         weight=not args.no_weight,
     )
-    _print(card)
+    emit(card, as_json=args.as_json, folder=out)
     return _exit_code(card)
 
 
 def _cmd_preocr(args: argparse.Namespace) -> int:
-    rgb, digest = load_page(Path(args.page))
+    rgb, digest = _load(args.page)
     out = _out(args.page, args.out, "preocr")
     card = preocr_page(rgb, src=str(args.page), out_dir=out, sha256_in=digest)
-    _print(card)
+    emit(card, as_json=args.as_json, folder=out)
     return _exit_code(card)
 
 
 def _cmd_together(args: argparse.Namespace) -> int:
-    rgb, digest = load_page(Path(args.page))
+    rgb, digest = _load(args.page)
     out = _out(args.page, args.out, "together")
     card = together_page(
         rgb,
@@ -398,30 +445,47 @@ def _cmd_together(args: argparse.Namespace) -> int:
         geom=not args.no_geom,
         weight=not args.no_weight,
     )
-    _print(card)
+    emit(card, as_json=args.as_json, folder=out)
     return _exit_code(card)
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="run.py",
-        description=(
-            "AMOE-1.3 wiring on the SpectralLock 0.3.1 grid. "
-            "Not a field and not a color. Author Aziel Eliab. "
-            + PAINT_LAW
-        ),
-        epilog="Geometry and weighting default ON (--no-geom / --no-weight).",
-    )
-    parser.add_argument("--version", action="version", version=f"AMOE {__version__} ({__paper__})")
-    sub = parser.add_subparsers(dest="cmd", required=True)
+def _cmd_doctor(args: argparse.Namespace) -> int:
+    card = doctor_card()
+    emit(card, as_json=args.as_json)
+    return 0 if card["ok"] else 1
 
-    overlay = sub.add_parser("overlay", help="One SpectralLock lens plus an AMOE card")
+
+def _cmd_ui(args: argparse.Namespace) -> int:
+    from amoe.ui import serve
+
+    try:
+        serve(host=args.host, port=args.port)
+    except ValueError as exc:
+        sys.stderr.write(str(exc) + "\nTry: amoe ui\n")
+        return 2
+    return 0
+
+
+def _add_ui(sub: argparse._SubParsersAction, name: str, help_line: str) -> None:
+    parser = sub.add_parser(name, help=help_line)
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8871)
+    parser.set_defaults(func=_cmd_ui)
+
+
+def build_parser() -> AmoeParser:
+    parser = AmoeParser(prog="amoe", add_help=True)
+    parser.format_help = lambda: help_text()  # type: ignore[method-assign]
+    parser.add_argument("--version", action="version", version=f"AMOE {__version__} ({__paper__})")
+    sub = parser.add_subparsers(dest="cmd", required=False, parser_class=AmoeParser)
+
+    overlay = sub.add_parser("overlay", help="Color one lens on a page")
     _add_page(overlay)
     overlay.add_argument("--mode", required=True)
     _add_lens_flags(overlay)
     overlay.set_defaults(func=_cmd_overlay)
 
-    grid = sub.add_parser("grid", help="All eleven lenses. No twelfth color.")
+    grid = sub.add_parser("grid", help="All eleven lenses")
     _add_page(grid)
     _add_lens_flags(grid)
     grid.set_defaults(func=_cmd_grid)
@@ -432,11 +496,11 @@ def build_parser() -> argparse.ArgumentParser:
     paint.add_argument("--mode", default=None)
     paint.set_defaults(func=_cmd_paint)
 
-    gallery = sub.add_parser("gallery", help="Labeled 3×3 wheel sheet")
+    gallery = sub.add_parser("gallery", help="Labeled wheel sheet")
     _add_page(gallery)
     gallery.set_defaults(func=_cmd_gallery)
 
-    lift = sub.add_parser("lift", help="Stretch, equalize, and unsharp present pixels")
+    lift = sub.add_parser("lift", help="Stretch pixels already on the page")
     _add_page(lift)
     lift.set_defaults(func=_cmd_lift)
 
@@ -446,7 +510,7 @@ def build_parser() -> argparse.ArgumentParser:
     geom.add_argument("--no-weight", action="store_true", help="Harmonic weighting is on unless this is set")
     geom.set_defaults(func=_cmd_geom)
 
-    adapt_p = sub.add_parser("adapt", help="Classify the page and reconstruct only if faint")
+    adapt_p = sub.add_parser("adapt", help="Read the page and rebuild only if it is faint")
     _add_page(adapt_p)
     adapt_p.add_argument("--grid", action="store_true", help="Also write the eleven-lens grid")
     adapt_p.add_argument("--target", choices=["ink", "page"], default=None)
@@ -457,27 +521,27 @@ def build_parser() -> argparse.ArgumentParser:
     adapt_p.add_argument("--index", action="append", default=[], metavar="KEY=0..1")
     adapt_p.set_defaults(func=_cmd_adapt)
 
-    recon = sub.add_parser("reconstruct", help="Alias of adapt when a page is given")
+    recon = sub.add_parser("reconstruct", help="Same path as adapt when a page is given")
     _add_page(recon, required=False)
     recon.set_defaults(func=_cmd_reconstruct)
 
-    path = sub.add_parser("path", help="Audit a path card. Does not read pixels.")
+    path = sub.add_parser("path", help="Audit a path card")
     path.add_argument("--card", required=True)
     path.set_defaults(func=_cmd_path)
 
-    catalog = sub.add_parser("catalog", help="Print the catalog fragment")
+    catalog = sub.add_parser("catalog", help="Show the catalog card")
     catalog.set_defaults(func=_cmd_catalog)
 
-    custodian = sub.add_parser("custodian", help="Print custodian bind and waterfall route")
+    custodian = sub.add_parser("custodian", help="Show the custodian bind")
     custodian.set_defaults(func=_cmd_custodian)
 
-    recover_i = sub.add_parser("recover-image", help="Pull, ZERO sheet, geom. No new glyphs")
+    recover_i = sub.add_parser("recover-image", help="Pull, ZERO sheet, geometry")
     _add_page(recover_i)
     recover_i.add_argument("--no-geom", action="store_true")
     recover_i.add_argument("--no-weight", action="store_true")
     recover_i.set_defaults(func=_cmd_recover_image)
 
-    recover_s = sub.add_parser("recover-script", help="Script track. No transcription as fact")
+    recover_s = sub.add_parser("recover-script", help="Script track on marks already visible")
     _add_page(recover_s)
     recover_s.add_argument("--no-geom", action="store_true")
     recover_s.add_argument("--no-weight", action="store_true")
@@ -490,13 +554,13 @@ def build_parser() -> argparse.ArgumentParser:
     script.add_argument("--no-weight", action="store_true")
     script.set_defaults(func=_cmd_script)
 
-    route = sub.add_parser("route", help="Score all lenses and paint the winner")
+    route = sub.add_parser("route", help="Paint the lens with the strongest residual contrast")
     _add_page(route)
     route.add_argument("--no-geom", action="store_true")
     route.add_argument("--no-weight", action="store_true")
     route.set_defaults(func=_cmd_route)
 
-    pre = sub.add_parser("preocr", help="Darken residual strokes. No new strokes")
+    pre = sub.add_parser("preocr", help="Darken strokes already on the page")
     _add_page(pre)
     pre.set_defaults(func=_cmd_preocr)
 
@@ -505,18 +569,39 @@ def build_parser() -> argparse.ArgumentParser:
     both.add_argument("--no-geom", action="store_true")
     both.add_argument("--no-weight", action="store_true")
     both.set_defaults(func=_cmd_together)
+
+    doctor = sub.add_parser("doctor", help="Check this install")
+    doctor.set_defaults(func=_cmd_doctor)
+
+    _add_ui(sub, "ui", "Open the local page on 127.0.0.1")
+    _add_ui(sub, "serve", "Same as ui")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
+    raw = list(sys.argv[1:] if argv is None else argv)
+    as_json, raw = _wants_json(raw)
+    if not raw:
+        if as_json:
+            _print(welcome_card())
+        else:
+            sys.stdout.write(welcome_text())
+        return 0
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(raw)
+    if not getattr(args, "cmd", None):
+        if as_json:
+            _print(welcome_card())
+        else:
+            sys.stdout.write(welcome_text())
+        return 0
+    args.as_json = as_json
     try:
         return int(args.func(args))
     except AmoeError as exc:
         payload = invention_card(exc.code, str(exc.extra) if exc.extra else None)
         payload["extra"] = exc.extra
-        _print(payload)
+        emit(payload, as_json=as_json)
         return 2
 
 

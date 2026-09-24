@@ -450,7 +450,7 @@ def test_cli_help_catalog_and_path(tmp_path: Path):
     assert "--no-weight" in help_run.stdout
 
     catalog = subprocess.run(
-        [sys.executable, str(ROOT / "run.py"), "catalog"],
+        [sys.executable, str(ROOT / "run.py"), "--json", "catalog"],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -465,7 +465,7 @@ def test_cli_help_catalog_and_path(tmp_path: Path):
     card = tmp_path / "steps.json"
     card.write_text(json.dumps({"steps": []}), encoding="utf-8")
     refused = subprocess.run(
-        [sys.executable, str(ROOT / "run.py"), "path", "--card", str(card)],
+        [sys.executable, str(ROOT / "run.py"), "--json", "path", "--card", str(card)],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -475,7 +475,7 @@ def test_cli_help_catalog_and_path(tmp_path: Path):
     assert json.loads(refused.stdout)["refuse"] == "AMOE-NO-FIGURE"
 
     bare = subprocess.run(
-        [sys.executable, str(ROOT / "run.py"), "reconstruct", "--out", str(tmp_path / "recon")],
+        [sys.executable, str(ROOT / "run.py"), "--json", "reconstruct", "--out", str(tmp_path / "recon")],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -490,6 +490,7 @@ def test_cli_help_catalog_and_path(tmp_path: Path):
         [
             sys.executable,
             str(ROOT / "run.py"),
+            "--json",
             "overlay",
             str(page),
             "--mode",
@@ -515,6 +516,7 @@ def test_cli_overlay_zero_geom_and_tracks(tmp_path: Path):
         [
             sys.executable,
             str(ROOT / "run.py"),
+            "--json",
             "overlay",
             str(page),
             "--mode",
@@ -544,6 +546,7 @@ def test_cli_overlay_zero_geom_and_tracks(tmp_path: Path):
         [
             sys.executable,
             str(ROOT / "run.py"),
+            "--json",
             "overlay",
             str(page),
             "--mode",
@@ -567,7 +570,7 @@ def test_cli_overlay_zero_geom_and_tracks(tmp_path: Path):
     for command in ("recover-image", "recover-script", "route", "preocr", "together"):
         dest = tmp_path / command
         result = subprocess.run(
-            [sys.executable, str(ROOT / "run.py"), command, str(page), "--out", str(dest)],
+            [sys.executable, str(ROOT / "run.py"), "--json", command, str(page), "--out", str(dest)],
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -584,6 +587,7 @@ def test_cli_overlay_zero_geom_and_tracks(tmp_path: Path):
         [
             sys.executable,
             str(ROOT / "run.py"),
+            "--json",
             "script",
             str(page),
             "--mode",
@@ -598,3 +602,187 @@ def test_cli_overlay_zero_geom_and_tracks(tmp_path: Path):
     )
     assert script.returncode == 0, script.stderr
     assert json.loads(script.stdout)["focus"] == "tazel"
+
+
+def test_human_welcome_help_and_plain_errors(tmp_path: Path):
+    welcome = subprocess.run(
+        [sys.executable, str(ROOT / "run.py")],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert welcome.returncode == 0
+    assert "overlay page.jpg --mode tazel" in welcome.stdout
+    assert "arguments are required" not in welcome.stdout
+    assert "arguments are required" not in welcome.stderr
+    assert welcome.stdout.strip().startswith("{") is False
+
+    help_run = subprocess.run(
+        [sys.executable, str(ROOT / "run.py"), "--help"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert help_run.returncode == 0
+    assert "usage: amoe <command>" in help_run.stdout
+    assert "--json" in help_run.stdout
+    assert "Aziel Eliab" in help_run.stdout
+    assert "changelog" not in help_run.stdout.lower()
+
+    bogus = subprocess.run(
+        [sys.executable, str(ROOT / "run.py"), "bogus"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert bogus.returncode == 2
+    assert 'Unknown command "bogus"' in bogus.stderr
+    assert "amoe --help" in bogus.stderr
+    assert "Traceback" not in bogus.stderr
+
+    missing = subprocess.run(
+        [sys.executable, str(ROOT / "run.py"), "overlay"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert missing.returncode == 2
+    assert "amoe overlay PAGE.jpg --mode tazel" in missing.stderr
+    assert "Traceback" not in missing.stderr
+
+    page = tmp_path / "folio.png"
+    _save(page, _folio())
+    human = subprocess.run(
+        [sys.executable, str(ROOT / "run.py"), "overlay", str(page), "--mode", "zero", "--paint", "wheel"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert human.returncode == 0, human.stderr
+    assert human.stdout.strip().startswith("{") is False
+    assert "zero" in human.stdout
+    assert "wheel" in human.stdout
+
+    machine = subprocess.run(
+        [sys.executable, str(ROOT / "run.py"), "--json"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert machine.returncode == 0
+    body = json.loads(machine.stdout)
+    assert body["amoe_is_wiring"] is True
+    assert body["author"] == "Aziel Eliab"
+
+    doctor = subprocess.run(
+        [sys.executable, str(ROOT / "run.py"), "doctor"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert doctor.returncode == 0, doctor.stderr
+    assert "pass" in doctor.stdout
+    assert "telemetry: none" in doctor.stdout
+    assert doctor.stdout.strip().startswith("{") is False
+
+
+def test_local_ui_html_json_and_loopback(tmp_path: Path):
+    import threading
+    import urllib.request
+
+    from amoe.ui import make_server
+
+    httpd = make_server("127.0.0.1", 0)
+    port = httpd.server_address[1]
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with pytest.raises(ValueError):
+            make_server("0.0.0.0", 8871)
+        page = urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5)
+        html = page.read().decode("utf-8")
+        assert "Choose a page" in html
+        assert "Advanced" in html
+        assert "prefers-color-scheme" not in html
+        css = urllib.request.urlopen(f"http://127.0.0.1:{port}/style.css", timeout=5).read().decode("utf-8")
+        assert "prefers-color-scheme" in css
+        assert ":focus-visible" in css
+        assert "#c9a227" in css
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/",
+            headers={"Accept": "application/json"},
+        )
+        card = json.loads(urllib.request.urlopen(req, timeout=5).read().decode("utf-8"))
+        assert card["amoe_is_wiring"] is True
+        assert card["pigment_recovery"] is False
+
+        image = tmp_path / "folio.png"
+        _save(image, _folio())
+        boundary = "----amoe-test"
+        body = (
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="mode"\r\n\r\n'
+            "zero\r\n"
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="paint"\r\n\r\n'
+            "wheel\r\n"
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="file"; filename="folio.png"\r\n'
+            "Content-Type: image/png\r\n\r\n"
+        ).encode() + image.read_bytes() + f"\r\n--{boundary}--\r\n".encode()
+        posted = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/color",
+            data=body,
+            headers={"Content-Type": f"multipart/form-data; boundary={boundary}", "Accept": "application/json"},
+            method="POST",
+        )
+        colored = json.loads(urllib.request.urlopen(posted, timeout=20).read().decode("utf-8"))
+        assert colored["pigment_recovery"] is False
+        assert colored["cells"]["zero"]["pass"] == "wheel"
+        assert "score" in colored
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_spectrallock_welcome_and_unknown_command():
+    welcome = subprocess.run(
+        [sys.executable, "-m", "spectrallock"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert welcome.returncode == 0, welcome.stderr
+    assert "spectrallock ui" in welcome.stdout
+    assert "arguments are required" not in welcome.stderr
+
+    help_run = subprocess.run(
+        [sys.executable, "-m", "spectrallock", "--help"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert help_run.returncode == 0
+    assert "overlay" in help_run.stdout
+    assert "pigment" in help_run.stdout
+    assert "Aziel Eliab" in help_run.stdout
+
+    bogus = subprocess.run(
+        [sys.executable, "-m", "spectrallock", "bogus"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert bogus.returncode == 2
+    assert 'Unknown command "bogus"' in bogus.stderr
+    assert "Traceback" not in bogus.stderr

@@ -87,7 +87,7 @@ def build_gallery(rgb: np.ndarray) -> tuple[np.ndarray, list[str]]:
     width = cols * tw + (cols + 1) * gap
     canvas = Image.new("RGB", (width, height), (18, 17, 16))
     draw = ImageDraw.Draw(canvas)
-    draw.text((gap, 6), "AMOE-1.3 gallery · wheel law · wiring, not a field", fill=(223, 210, 181))
+    draw.text((gap, 6), "AMOE-1.3 gallery · wheel law", fill=(223, 210, 181))
     for index, tile in enumerate(tiles):
         y, x = divmod(index, cols)
         left = gap + x * (tw + gap)
