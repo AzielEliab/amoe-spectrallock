@@ -42,6 +42,14 @@ python3 run.py --help
 
 Runtime dependencies are `numpy` and `Pillow` (`requirements.txt`).
 
+## Download
+
+The counted landing is a Worker in `workers/download-tracker`. It is not deployed from this repository. After a teammate deploys `amoe-spectrallock-download-tracker`, the page is:
+
+https://amoe-spectrallock-download-tracker.vibelock.workers.dev/
+
+`GET /download` returns `amoe-spectrallock-1.3.0.tar.gz`, packed from this tree by `workers/download-tracker/scripts/build-asset.sh`. There is no GitHub release asset. The same archive is the Linux, macOS, and Windows source package. Downloads are counted per branch and fork. Rebuild the archive when the tree changes, then deploy.
+
 ## CLI
 
 ```bash

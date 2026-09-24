@@ -6,3 +6,4 @@ __pycache__/
 amoe-out/
 dist/
 build/
+node_modules/
