@@ -1,0 +1,10 @@
+AMOE — Aziel Eliab
+
+1. pip install -e .
+2. amoe overlay page.jpg --mode tazel
+3. Open amoe-out/page/overlay/tazel.png
+
+Local page: amoe ui
+Open http://127.0.0.1:8871/
+
+Machine card: add --json
